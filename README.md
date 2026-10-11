@@ -111,6 +111,36 @@ You can run it directly:
 
 ---
 
+## Packaging & Distribution
+
+### Building the `.app` Bundle, DMG & ZIP
+To assemble a standalone macOS application bundle (`DisplayToggle.app`) along with drag-and-drop `.dmg` and `.zip` distribution packages:
+
+```bash
+./scripts/package-app.sh 1.0.0
+```
+
+The output artifacts are generated in `dist/`:
+- `dist/DisplayToggle.app`: Native macOS application bundle.
+- `dist/DisplayToggle.dmg`: Drag-and-drop installer image.
+- `dist/DisplayToggle.zip`: Compressed application archive.
+
+### GitHub Actions Automated Releases
+A GitHub Actions workflow (`.github/workflows/release.yml`) is included. When a Git version tag is pushed (e.g. `git tag v1.0.0 && git push origin v1.0.0`), the CI pipeline automatically:
+1. Runs the test suite on `macos-15`.
+2. Packages `DisplayToggle.app`, `DisplayToggle.dmg`, and `DisplayToggle.zip`.
+3. Signs and notarizes the artifacts (if Apple Developer credentials are provided in GitHub Secrets).
+4. Publishes a GitHub Release with the installer assets attached.
+
+### Homebrew Cask Distribution
+A ready-to-use Homebrew Cask template is provided at `packaging/homebrew/displaytoggle.rb`. To distribute via a custom Homebrew tap:
+```bash
+brew tap jrussellsmyth/tap
+brew install --cask displaytoggle
+```
+
+---
+
 ## Testing
 
 Run the full automated test suite:
