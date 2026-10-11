@@ -130,23 +130,27 @@ A GitHub Actions workflow (`.github/workflows/release.yml`) is included. When a 
 1. Runs the test suite on `macos-15`.
 2. Packages `DisplayToggle.app`, `DisplayToggle.dmg`, and `DisplayToggle.zip`.
 3. Signs and notarizes the artifacts (if Apple Developer credentials are provided in GitHub Secrets).
-4. Publishes a GitHub Release with the installer assets attached.
+4. Generates SHA-256 checksums (`DisplayToggle.dmg.sha256` and `DisplayToggle.zip.sha256`).
+5. Publishes a GitHub Release with the installer assets attached.
+6. Automatically updates the Cask formula in your Homebrew tap repository (`jrussellsmyth/homebrew-tap`) if `HOMEBREW_TAP_TOKEN` is configured in GitHub Secrets.
 
 ### Homebrew Cask Distribution
-A Homebrew Cask formula template is provided at `packaging/homebrew/displaytoggle.rb`.
+DisplayToggle is available via the custom tap [`jrussellsmyth/homebrew-tap`](https://github.com/jrussellsmyth/homebrew-tap).
 
-#### 1. Publishing to a Custom Tap
-1. Create a GitHub repository named `homebrew-tap` (or similar) under your GitHub account.
-2. Copy `packaging/homebrew/displaytoggle.rb` to `Casks/displaytoggle.rb` in that repository.
-3. Update `version` and replace `sha256` with the checksum from the release asset (`DisplayToggle.dmg.sha256`).
-4. Users can then install and update with:
-   ```bash
-   brew tap jrussellsmyth/tap
-   brew install --cask displaytoggle
-   ```
+#### Installing via Homebrew
+```bash
+brew tap jrussellsmyth/tap
+brew install --cask displaytoggle
+```
 
-#### 2. Local Installation (from Source)
-To install locally using the included cask formula without setting up a remote tap:
+#### Automated Tap Updates on Release
+To automatically update the cask in `jrussellsmyth/homebrew-tap` whenever a new release tag is pushed:
+1. Create a GitHub Personal Access Token (PAT) with write access to `jrussellsmyth/homebrew-tap` (or classic `repo` scope).
+2. Add it to this repository's secrets as `HOMEBREW_TAP_TOKEN` (`Settings` $\rightarrow$ `Secrets and variables` $\rightarrow$ `Actions`).
+3. Whenever a release tag (e.g. `v1.0.1`) is pushed, GitHub Actions will automatically update `Casks/displaytoggle.rb` in your tap with the new version and calculated SHA-256.
+
+#### Local Installation (from Source)
+To test or install locally using the included cask template without downloading from GitHub Releases:
 ```bash
 brew install --cask packaging/homebrew/displaytoggle.rb
 ```
