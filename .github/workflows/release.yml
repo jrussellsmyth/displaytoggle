@@ -69,24 +69,28 @@ jobs:
         run: ./scripts/package-app.sh "${{ steps.get_version.outputs.VERSION }}"
 
       - name: Notarize App (Optional)
-        if: env.CODESIGN_IDENTITY != '' && secrets.APPLE_ID != ''
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
-          echo "Submitting DMG for Apple notarization..."
-          xcrun notarytool submit dist/DisplayToggle.dmg \
-            --apple-id "$APPLE_ID" \
-            --team-id "$APPLE_TEAM_ID" \
-            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --wait
-          xcrun stapler staple dist/DisplayToggle.dmg
-          xcrun stapler staple dist/DisplayToggle.app
+          if [ -n "$CODESIGN_IDENTITY" ] && [ -n "$APPLE_ID" ] && [ -n "$APPLE_TEAM_ID" ] && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ]; then
+            echo "Submitting DMG for Apple notarization..."
+            xcrun notarytool submit dist/DisplayToggle.dmg \
+              --apple-id "$APPLE_ID" \
+              --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+              --wait
+            xcrun stapler staple dist/DisplayToggle.dmg
+            xcrun stapler staple dist/DisplayToggle.app
+          else
+            echo "Apple notarization credentials not provided or codesign identity missing. Skipping notarization."
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: "v${{ steps.get_version.outputs.VERSION }}"
           name: "DisplayToggle v${{ steps.get_version.outputs.VERSION }}"
           draft: false
           prerelease: false
