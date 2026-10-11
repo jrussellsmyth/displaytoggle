@@ -60,10 +60,25 @@ struct MockDisplayManagerTests {
     @Test("toggleMainDisplay throws if display count != 2")
     func testToggleFailsWithOneOrThreeDisplays() {
         let d1 = DisplayInfo(id: 1, name: "D1", bounds: CGRect(x: 0, y: 0, width: 1920, height: 1080), isMain: true, isBuiltin: true)
-        let manager = MockDisplayManager(displays: [d1])
+        let manager1 = MockDisplayManager(displays: [d1])
 
         #expect(throws: DisplayError.insufficientDisplays) {
-            try manager.toggleMainDisplay()
+            try manager1.toggleMainDisplay()
         }
+
+        let d2 = DisplayInfo(id: 2, name: "D2", bounds: CGRect(x: 1920, y: 0, width: 1920, height: 1080), isMain: false, isBuiltin: false)
+        let d3 = DisplayInfo(id: 3, name: "D3", bounds: CGRect(x: 3840, y: 0, width: 1920, height: 1080), isMain: false, isBuiltin: false)
+        let manager3 = MockDisplayManager(displays: [d1, d2, d3])
+
+        #expect(throws: DisplayError.insufficientDisplays) {
+            try manager3.toggleMainDisplay()
+        }
+    }
+
+    @Test("DisplayManager.shared can discover active displays on system")
+    func testRealDisplayManagerDiscovery() {
+        let displays = DisplayManager.shared.refreshDisplays()
+        #expect(!displays.isEmpty)
+        #expect(DisplayManager.shared.mainDisplay != nil)
     }
 }

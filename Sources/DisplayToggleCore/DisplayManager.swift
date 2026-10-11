@@ -117,6 +117,7 @@ public final class DisplayManager: DisplayManaging, @unchecked Sendable {
 
     private static let displayReconfigurationCallback: CGDisplayReconfigurationCallBack = { _, flags, userInfo in
         guard let userInfo = userInfo else { return }
+        guard !flags.contains(.beginConfigurationFlag) else { return }
         let manager = Unmanaged<DisplayManager>.fromOpaque(userInfo).takeUnretainedValue()
         if flags.contains(.addFlag) || flags.contains(.removeFlag) || flags.contains(.movedFlag) {
             DispatchQueue.main.async {
