@@ -84,6 +84,12 @@ build_archives() {
     mkdir -p "$DMG_STAGING"
     cp -R "$APP_BUNDLE" "$DMG_STAGING/"
     ln -s /Applications "$DMG_STAGING/Applications"
+    if [ -f "$ROOT_DIR/Resources/AppIcon.icns" ]; then
+        cp "$ROOT_DIR/Resources/AppIcon.icns" "$DMG_STAGING/.VolumeIcon.icns"
+        if command -v SetFile >/dev/null 2>&1; then
+            SetFile -a C "$DMG_STAGING"
+        fi
+    fi
 
     hdiutil create -volname "$APP_NAME" \
         -srcfolder "$DMG_STAGING" \
