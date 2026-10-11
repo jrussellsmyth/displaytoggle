@@ -23,7 +23,7 @@ struct DisplayManagerTests {
                         id: display.id,
                         name: display.name,
                         bounds: CGRect(origin: newOrigin, size: display.bounds.size),
-                        isMain: display.id == 2,
+                        isMain: (newOrigin == CGPoint.zero),
                         isBuiltin: display.isBuiltin
                     )
                 }
@@ -32,10 +32,17 @@ struct DisplayManagerTests {
 
         #expect(manager.mainDisplay?.id == 1)
 
+        // First toggle: 1 -> 2
         try manager.toggleMainDisplay()
         #expect(manager.mainDisplay?.id == 2)
         #expect(appliedOrigins[2] == CGPoint(x: 0, y: 0))
         #expect(appliedOrigins[1] == CGPoint(x: -1920, y: 0))
+
+        // Second toggle: 2 -> 1
+        try manager.toggleMainDisplay()
+        #expect(manager.mainDisplay?.id == 1)
+        #expect(appliedOrigins[1] == CGPoint(x: 0, y: 0))
+        #expect(appliedOrigins[2] == CGPoint(x: 1920, y: 0))
     }
 
     @Test("toggleMainDisplay throws when display count is 1 or 3")

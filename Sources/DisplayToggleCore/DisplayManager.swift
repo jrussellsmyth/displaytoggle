@@ -48,9 +48,14 @@ public final class DisplayManager: DisplayManaging {
         }
 
         var displayCount: UInt32 = 0
-        var activeDisplays = [CGDirectDisplayID](repeating: 0, count: 16)
-        let result = CGGetActiveDisplayList(16, &activeDisplays, &displayCount)
+        let countResult = CGGetActiveDisplayList(0, nil, &displayCount)
+        guard countResult == .success, displayCount > 0 else {
+            self.displays = []
+            return []
+        }
 
+        var activeDisplays = [CGDirectDisplayID](repeating: 0, count: Int(displayCount))
+        let result = CGGetActiveDisplayList(displayCount, &activeDisplays, &displayCount)
         guard result == .success else {
             self.displays = []
             return []
