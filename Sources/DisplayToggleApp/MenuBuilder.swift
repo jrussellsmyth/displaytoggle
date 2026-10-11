@@ -61,6 +61,8 @@ final class MenuActionHandler: NSObject {
     @objc func displaySelected(_ sender: NSMenuItem) {
         if let id = sender.representedObject as? CGDirectDisplayID {
             onSelectDisplay?(id)
+        } else if let number = sender.representedObject as? NSNumber {
+            onSelectDisplay?(number.uint32Value)
         }
     }
 

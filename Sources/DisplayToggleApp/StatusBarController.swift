@@ -1,8 +1,11 @@
 import AppKit
 import DisplayToggleCore
+import os
+
+private let logger = Logger(subsystem: "com.displaytoggle.DisplayToggleApp", category: "StatusBarController")
 
 @MainActor
-final class StatusBarController: NSObject {
+final class StatusBarController: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
     private let displayManager: DisplayManager
 
@@ -46,7 +49,7 @@ final class StatusBarController: NSObject {
                 try displayManager.toggleMainDisplay()
                 updateUI()
             } catch {
-                NSLog("Failed to toggle display: \(error)")
+                logger.error("Failed to toggle display: \(error.localizedDescription)")
                 showMenu()
             }
         } else {
@@ -70,9 +73,14 @@ final class StatusBarController: NSObject {
             }
         )
 
+        menu.delegate = self
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
-        // Reset menu to nil after tracking so subsequent clicks fire handleButtonClick
+    }
+
+    // MARK: - NSMenuDelegate
+
+    func menuDidClose(_ menu: NSMenu) {
         statusItem.menu = nil
     }
 
@@ -83,7 +91,9 @@ final class StatusBarController: NSObject {
         let main = displayManager.mainDisplay
 
         let iconName = displays.count > 1 ? "display.2" : "display"
-        button.image = NSImage(systemSymbolName: iconName, accessibilityDescription: "Display Toggle")
+        let image = NSImage(systemSymbolName: iconName, accessibilityDescription: "Display Toggle")
+        image?.isTemplate = true
+        button.image = image
 
         if let main = main {
             if displays.count == 2, let other = displays.first(where: { !$0.isMain }) {
