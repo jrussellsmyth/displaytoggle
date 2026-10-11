@@ -11,8 +11,9 @@ if [ ! -f "$SRC_IMAGE" ]; then
     exit 1
 fi
 
-ICONSET_DIR="$ROOT_DIR/Resources/AppIcon.iconset"
-rm -rf "$ICONSET_DIR"
+TMP_DIR="$(mktemp -d -t displaytoggle_iconset_XXXXXX)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+ICONSET_DIR="$TMP_DIR/AppIcon.iconset"
 mkdir -p "$ICONSET_DIR"
 
 echo "==> Generating iconset sizes from $SRC_IMAGE..."
@@ -29,6 +30,5 @@ sips -z 1024 1024 "$SRC_IMAGE" --out "$ICONSET_DIR/icon_512x512@2x.png" >/dev/nu
 
 echo "==> Converting iconset into Resources/AppIcon.icns..."
 iconutil -c icns "$ICONSET_DIR" -o "$ROOT_DIR/Resources/AppIcon.icns"
-rm -rf "$ICONSET_DIR"
 
 echo "==> Successfully created $ROOT_DIR/Resources/AppIcon.icns!"
