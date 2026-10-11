@@ -2,7 +2,8 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-public final class DisplayManager: DisplayManaging, @unchecked Sendable {
+@MainActor
+public final class DisplayManager: DisplayManaging {
     public static let shared = DisplayManager()
 
     public private(set) var displays: [DisplayInfo] = []
@@ -11,7 +12,7 @@ public final class DisplayManager: DisplayManaging, @unchecked Sendable {
         displays.first(where: { $0.isMain })
     }
 
-    public var onDisplaysChanged: (@Sendable () -> Void)?
+    public var onDisplaysChanged: (@MainActor () -> Void)?
 
     private var reconfigurationCallbackAdded = false
 
@@ -22,10 +23,11 @@ public final class DisplayManager: DisplayManaging, @unchecked Sendable {
 
     deinit {
         if reconfigurationCallbackAdded {
-            CGDisplayRemoveReconfigurationCallback(reconfigurationCallback, Unmanaged.passUnretained(self).toOpaque())
+            CGDisplayRemoveReconfigurationCallback(Self.displayReconfigurationCallback, Unmanaged.passUnretained(self).toOpaque())
         }
     }
 
+    @discardableResult
     public func refreshDisplays() -> [DisplayInfo] {
         var displayCount: UInt32 = 0
         var activeDisplays = [CGDirectDisplayID](repeating: 0, count: 16)
@@ -115,13 +117,13 @@ public final class DisplayManager: DisplayManaging, @unchecked Sendable {
         try setMainDisplay(id: nonMain.id)
     }
 
-    private static let displayReconfigurationCallback: CGDisplayReconfigurationCallBack = { _, flags, userInfo in
+    private nonisolated static let displayReconfigurationCallback: CGDisplayReconfigurationCallBack = { _, flags, userInfo in
         guard let userInfo = userInfo else { return }
         guard !flags.contains(.beginConfigurationFlag) else { return }
         let manager = Unmanaged<DisplayManager>.fromOpaque(userInfo).takeUnretainedValue()
         if flags.contains(.addFlag) || flags.contains(.removeFlag) || flags.contains(.movedFlag) {
-            DispatchQueue.main.async {
-                _ = manager.refreshDisplays()
+            Task { @MainActor in
+                manager.refreshDisplays()
                 manager.onDisplaysChanged?()
             }
         }
@@ -129,12 +131,8 @@ public final class DisplayManager: DisplayManaging, @unchecked Sendable {
 
     private func setupReconfigurationCallback() {
         let selfPtr = Unmanaged.passUnretained(self).toOpaque()
-        if CGDisplayRegisterReconfigurationCallback(reconfigurationCallback, selfPtr) == .success {
+        if CGDisplayRegisterReconfigurationCallback(Self.displayReconfigurationCallback, selfPtr) == .success {
             reconfigurationCallbackAdded = true
         }
-    }
-
-    private var reconfigurationCallback: CGDisplayReconfigurationCallBack {
-        Self.displayReconfigurationCallback
     }
 }

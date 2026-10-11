@@ -5,7 +5,7 @@ import os
 private let logger = Logger(subsystem: "com.displaytoggle.DisplayToggleApp", category: "StatusBarController")
 
 @MainActor
-final class StatusBarController: NSObject, NSMenuDelegate {
+final class StatusBarController: NSObject {
     private let statusItem: NSStatusItem
     private let displayManager: DisplayManager
 
@@ -18,9 +18,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         updateUI()
 
         displayManager.onDisplaysChanged = { [weak self] in
-            Task { @MainActor [weak self] in
-                self?.updateUI()
-            }
+            self?.updateUI()
         }
     }
 
@@ -73,15 +71,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             }
         )
 
-        menu.delegate = self
-        statusItem.menu = menu
-        statusItem.button?.performClick(nil)
-    }
-
-    // MARK: - NSMenuDelegate
-
-    func menuDidClose(_ menu: NSMenu) {
-        statusItem.menu = nil
+        statusItem.popUpMenu(menu)
     }
 
     func updateUI() {

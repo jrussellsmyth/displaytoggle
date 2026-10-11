@@ -2,7 +2,8 @@ import CoreGraphics
 @testable import DisplayToggleCore
 import Testing
 
-final class MockDisplayManager: DisplayManaging, @unchecked Sendable {
+@MainActor
+final class MockDisplayManager: DisplayManaging {
     var displays: [DisplayInfo]
     var mainDisplay: DisplayInfo? {
         displays.first(where: { $0.isMain })
@@ -12,6 +13,7 @@ final class MockDisplayManager: DisplayManaging, @unchecked Sendable {
         self.displays = displays
     }
 
+    @discardableResult
     func refreshDisplays() -> [DisplayInfo] {
         return displays
     }
@@ -41,6 +43,7 @@ final class MockDisplayManager: DisplayManaging, @unchecked Sendable {
 }
 
 @Suite("DisplayManager Logic Tests")
+@MainActor
 struct MockDisplayManagerTests {
     @Test("toggleMainDisplay alternates between 2 displays")
     func testToggleBetweenTwoDisplays() throws {
