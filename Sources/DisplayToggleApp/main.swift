@@ -1,0 +1,1 @@
+// DisplayToggleApp entry point placeholder
