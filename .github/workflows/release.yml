@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to package (e.g. 1.0.0)"
+        required: true
+        default: "1.0.0"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Release App
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Determine Version
+        id: get_version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RAW_VERSION="$INPUT_VERSION"
+          else
+            RAW_VERSION="${GITHUB_REF_NAME#v}"
+          fi
+
+          # Strictly validate semantic version (e.g. 1.0.0 or 1.0.0-beta.1)
+          if [[ ! "$RAW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid version string: '$RAW_VERSION'. Must follow semantic versioning (e.g., 1.0.0)."
+            exit 1
+          fi
+
+          echo "VERSION=$RAW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Run Test Suite
+        run: swift test
+
+      - name: Setup Apple Signing Certificate (Optional)
+        id: setup_signing
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: "temporary-keychain-password"
+        run: |
+          if [ -n "$BUILD_CERTIFICATE_BASE64" ]; then
+            CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+            KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+            echo "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+            security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+            security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+            security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+            security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+            security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+            security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+            IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | head -n 1 | awk -F '"' '{print $2}')
+            echo "CODESIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+            echo "Signing with Developer ID identity: $IDENTITY"
+          else
+            echo "No Developer ID certificate configured. Using ad-hoc signature."
+          fi
+
+      - name: Build and Sign Application Bundle
+        run: ./scripts/package-app.sh "${{ steps.get_version.outputs.VERSION }}" --app-only
+
+      - name: Notarize and Staple Application Bundle (Optional)
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          if [ -n "$CODESIGN_IDENTITY" ] && [ -n "$APPLE_ID" ] && [ -n "$APPLE_TEAM_ID" ] && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ]; then
+            echo "Packaging temporary ZIP for Apple notarization..."
+            ditto -c -k --keepParent dist/DisplayToggle.app dist/DisplayToggle-submission.zip
+
+            echo "Submitting DisplayToggle.app for Apple notarization..."
+            xcrun notarytool submit dist/DisplayToggle-submission.zip \
+              --apple-id "$APPLE_ID" \
+              --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+              --wait
+            rm -f dist/DisplayToggle-submission.zip
+
+            echo "Stapling notarization ticket to DisplayToggle.app..."
+            xcrun stapler staple dist/DisplayToggle.app
+            echo "DisplayToggle.app successfully stapled."
+          else
+            echo "Apple notarization credentials not provided or codesign identity missing. Skipping app notarization."
+          fi
+
+      - name: Create Distributable Archives (ZIP and DMG)
+        run: ./scripts/package-app.sh "${{ steps.get_version.outputs.VERSION }}" --archives-only
+
+      - name: Staple DMG (Optional)
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+        run: |
+          if [ -n "$CODESIGN_IDENTITY" ] && [ -n "$APPLE_ID" ]; then
+            echo "Stapling notarization ticket to DisplayToggle.dmg..."
+            xcrun stapler staple dist/DisplayToggle.dmg || true
+          fi
+
+      - name: Calculate Release Checksums
+        run: |
+          cd dist
+          shasum -a 256 DisplayToggle.dmg > DisplayToggle.dmg.sha256
+          shasum -a 256 DisplayToggle.zip > DisplayToggle.zip.sha256
+          cat DisplayToggle.dmg.sha256
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.get_version.outputs.VERSION }}"
+          name: "DisplayToggle v${{ steps.get_version.outputs.VERSION }}"
+          draft: false
+          prerelease: false
+          files: |
+            dist/DisplayToggle.dmg
+            dist/DisplayToggle.dmg.sha256
+            dist/DisplayToggle.zip
+            dist/DisplayToggle.zip.sha256
+          generate_release_notes: true
