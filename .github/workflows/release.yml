@@ -1,6 +1,8 @@
 name: Release
 
 on:
+  release:
+    types: [published]
   push:
     tags:
       - "v*"
@@ -33,13 +35,18 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             RAW_VERSION="$INPUT_VERSION"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            RAW_VERSION="${{ github.event.release.tag_name }}"
           else
-            RAW_VERSION="${GITHUB_REF_NAME#v}"
+            RAW_VERSION="${GITHUB_REF_NAME}"
           fi
+
+          # Strip leading lowercase 'v'
+          RAW_VERSION="${RAW_VERSION#v}"
 
           # Strictly validate semantic version (e.g. 1.0.0 or 1.0.0-beta.1)
           if [[ ! "$RAW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Invalid version string: '$RAW_VERSION'. Must follow semantic versioning (e.g., 1.0.0)."
+            echo "::error::Invalid version string: '$RAW_VERSION'. Must follow semantic versioning with a lowercase 'v' tag (e.g., v1.0.0)."
             exit 1
           fi
 
@@ -121,7 +128,7 @@ jobs:
           shasum -a 256 DisplayToggle.zip > DisplayToggle.zip.sha256
           cat DisplayToggle.dmg.sha256
 
-      - name: Create GitHub Release
+      - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ steps.get_version.outputs.VERSION }}"
