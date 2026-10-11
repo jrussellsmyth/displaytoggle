@@ -1,6 +1,7 @@
 cask "displaytoggle" do
   version "1.0.0"
-  sha256 :no_check # Replace with sha256 of the release DMG (e.g. `shasum -a 256 DisplayToggle.dmg`)
+  # Replace with sha256 checksum of the release DisplayToggle.dmg (e.g. from DisplayToggle.dmg.sha256)
+  sha256 "REPLACE_WITH_RELEASE_DMG_SHA256"
 
   url "https://github.com/jrussellsmyth/displaytoggle/releases/download/v#{version}/DisplayToggle.dmg"
   name "DisplayToggle"

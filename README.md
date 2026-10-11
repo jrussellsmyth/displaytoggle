@@ -133,10 +133,22 @@ A GitHub Actions workflow (`.github/workflows/release.yml`) is included. When a 
 4. Publishes a GitHub Release with the installer assets attached.
 
 ### Homebrew Cask Distribution
-A ready-to-use Homebrew Cask template is provided at `packaging/homebrew/displaytoggle.rb`. To distribute via a custom Homebrew tap:
+A Homebrew Cask formula template is provided at `packaging/homebrew/displaytoggle.rb`.
+
+#### 1. Publishing to a Custom Tap
+1. Create a GitHub repository named `homebrew-tap` (or similar) under your GitHub account.
+2. Copy `packaging/homebrew/displaytoggle.rb` to `Casks/displaytoggle.rb` in that repository.
+3. Update `version` and replace `sha256` with the checksum from the release asset (`DisplayToggle.dmg.sha256`).
+4. Users can then install and update with:
+   ```bash
+   brew tap jrussellsmyth/tap
+   brew install --cask displaytoggle
+   ```
+
+#### 2. Local Installation (from Source)
+To install locally using the included cask formula without setting up a remote tap:
 ```bash
-brew tap jrussellsmyth/tap
-brew install --cask displaytoggle
+brew install --cask packaging/homebrew/displaytoggle.rb
 ```
 
 ---
