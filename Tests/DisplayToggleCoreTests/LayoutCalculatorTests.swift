@@ -104,4 +104,40 @@ struct LayoutCalculatorTests {
             try LayoutCalculator.calculateNewOrigins(displays: [displayA], targetMainID: 99)
         }
     }
+
+    @Test("Determines next toggle target between 2 displays")
+    func testNextToggleTarget() throws {
+        let displayA = DisplayInfo(
+            id: 1,
+            name: "Display 1",
+            bounds: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+            isMain: true,
+            isBuiltin: true
+        )
+        let displayB = DisplayInfo(
+            id: 2,
+            name: "Display 2",
+            bounds: CGRect(x: 1920, y: 0, width: 1920, height: 1080),
+            isMain: false,
+            isBuiltin: false
+        )
+
+        let target = try LayoutCalculator.nextToggleTarget(displays: [displayA, displayB])
+        #expect(target == 2)
+    }
+
+    @Test("Throws insufficientDisplays when display count is not 2")
+    func testNextToggleTargetThrows() {
+        let displayA = DisplayInfo(
+            id: 1,
+            name: "Display 1",
+            bounds: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+            isMain: true,
+            isBuiltin: true
+        )
+
+        #expect(throws: DisplayError.insufficientDisplays) {
+            try LayoutCalculator.nextToggleTarget(displays: [displayA])
+        }
+    }
 }

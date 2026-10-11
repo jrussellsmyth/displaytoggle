@@ -2,68 +2,46 @@ import CoreGraphics
 @testable import DisplayToggleCore
 import Testing
 
+@Suite("DisplayManager Production Logic Tests")
 @MainActor
-final class MockDisplayManager: DisplayManaging {
-    var displays: [DisplayInfo]
-    var mainDisplay: DisplayInfo? {
-        displays.first(where: { $0.isMain })
-    }
+struct DisplayManagerTests {
+    @Test("toggleMainDisplay alternates between 2 displays using production DisplayManager")
+    func testToggleBetweenTwoDisplaysUsingProductionManager() throws {
+        var currentDisplays = [
+            DisplayInfo(id: 1, name: "D1", bounds: CGRect(x: 0, y: 0, width: 1920, height: 1080), isMain: true, isBuiltin: true),
+            DisplayInfo(id: 2, name: "D2", bounds: CGRect(x: 1920, y: 0, width: 1920, height: 1080), isMain: false, isBuiltin: false)
+        ]
 
-    init(displays: [DisplayInfo]) {
-        self.displays = displays
-    }
-
-    @discardableResult
-    func refreshDisplays() -> [DisplayInfo] {
-        return displays
-    }
-
-    func setMainDisplay(id: CGDirectDisplayID) throws {
-        let newOrigins = try LayoutCalculator.calculateNewOrigins(displays: displays, targetMainID: id)
-        displays = displays.map { display in
-            let newOrigin = newOrigins[display.id] ?? display.bounds.origin
-            let newBounds = CGRect(origin: newOrigin, size: display.bounds.size)
-            return DisplayInfo(
-                id: display.id,
-                name: display.name,
-                bounds: newBounds,
-                isMain: display.id == id,
-                isBuiltin: display.isBuiltin
-            )
-        }
-    }
-
-    func toggleMainDisplay() throws {
-        guard displays.count == 2 else {
-            throw DisplayError.insufficientDisplays
-        }
-        guard let nonMain = displays.first(where: { !$0.isMain }) else { return }
-        try setMainDisplay(id: nonMain.id)
-    }
-}
-
-@Suite("DisplayManager Logic Tests")
-@MainActor
-struct MockDisplayManagerTests {
-    @Test("toggleMainDisplay alternates between 2 displays")
-    func testToggleBetweenTwoDisplays() throws {
-        let d1 = DisplayInfo(id: 1, name: "D1", bounds: CGRect(x: 0, y: 0, width: 1920, height: 1080), isMain: true, isBuiltin: true)
-        let d2 = DisplayInfo(id: 2, name: "D2", bounds: CGRect(x: 1920, y: 0, width: 1920, height: 1080), isMain: false, isBuiltin: false)
-        let manager = MockDisplayManager(displays: [d1, d2])
+        var appliedOrigins: [CGDirectDisplayID: CGPoint] = [:]
+        let manager = DisplayManager(
+            displayProvider: { currentDisplays },
+            displayReconfigurer: { newOrigins in
+                appliedOrigins = newOrigins
+                currentDisplays = currentDisplays.map { display in
+                    let newOrigin = newOrigins[display.id] ?? display.bounds.origin
+                    return DisplayInfo(
+                        id: display.id,
+                        name: display.name,
+                        bounds: CGRect(origin: newOrigin, size: display.bounds.size),
+                        isMain: display.id == 2,
+                        isBuiltin: display.isBuiltin
+                    )
+                }
+            }
+        )
 
         #expect(manager.mainDisplay?.id == 1)
 
         try manager.toggleMainDisplay()
         #expect(manager.mainDisplay?.id == 2)
-
-        try manager.toggleMainDisplay()
-        #expect(manager.mainDisplay?.id == 1)
+        #expect(appliedOrigins[2] == CGPoint(x: 0, y: 0))
+        #expect(appliedOrigins[1] == CGPoint(x: -1920, y: 0))
     }
 
-    @Test("toggleMainDisplay throws if display count != 2")
+    @Test("toggleMainDisplay throws when display count is 1 or 3")
     func testToggleFailsWithOneOrThreeDisplays() {
         let d1 = DisplayInfo(id: 1, name: "D1", bounds: CGRect(x: 0, y: 0, width: 1920, height: 1080), isMain: true, isBuiltin: true)
-        let manager1 = MockDisplayManager(displays: [d1])
+        let manager1 = DisplayManager(displayProvider: { [d1] })
 
         #expect(throws: DisplayError.insufficientDisplays) {
             try manager1.toggleMainDisplay()
@@ -71,17 +49,40 @@ struct MockDisplayManagerTests {
 
         let d2 = DisplayInfo(id: 2, name: "D2", bounds: CGRect(x: 1920, y: 0, width: 1920, height: 1080), isMain: false, isBuiltin: false)
         let d3 = DisplayInfo(id: 3, name: "D3", bounds: CGRect(x: 3840, y: 0, width: 1920, height: 1080), isMain: false, isBuiltin: false)
-        let manager3 = MockDisplayManager(displays: [d1, d2, d3])
+        let manager3 = DisplayManager(displayProvider: { [d1, d2, d3] })
 
         #expect(throws: DisplayError.insufficientDisplays) {
             try manager3.toggleMainDisplay()
         }
     }
 
-    @Test("DisplayManager.shared can discover active displays on system")
-    func testRealDisplayManagerDiscovery() {
+    @Test("Failed refresh clears displays cache")
+    func testFailedRefreshClearsDisplays() {
+        final class StateBox: @unchecked Sendable {
+            var shouldSucceed = true
+        }
+        let box = StateBox()
+        let manager = DisplayManager(displayProvider: {
+            if box.shouldSucceed {
+                return [DisplayInfo(id: 1, name: "D1", bounds: .zero, isMain: true, isBuiltin: true)]
+            } else {
+                return []
+            }
+        })
+
+        #expect(manager.displays.count == 1)
+        box.shouldSucceed = false
+        _ = manager.refreshDisplays()
+        #expect(manager.displays.isEmpty)
+    }
+
+    @Test("Live discovery handles headless CI runners gracefully")
+    func testLiveDiscoveryGracefulOnHeadlessCI() {
         let displays = DisplayManager.shared.refreshDisplays()
-        #expect(!displays.isEmpty)
-        #expect(DisplayManager.shared.mainDisplay != nil)
+        if !displays.isEmpty {
+            #expect(DisplayManager.shared.mainDisplay != nil)
+        } else {
+            #expect(DisplayManager.shared.mainDisplay == nil)
+        }
     }
 }

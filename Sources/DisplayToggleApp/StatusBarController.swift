@@ -59,8 +59,13 @@ final class StatusBarController: NSObject {
         let menu = MenuBuilder.buildMenu(
             displays: displayManager.displays,
             onSelectDisplay: { [weak self] id in
-                try? self?.displayManager.setMainDisplay(id: id)
-                self?.updateUI()
+                guard let self = self else { return }
+                do {
+                    try self.displayManager.setMainDisplay(id: id)
+                    self.updateUI()
+                } catch {
+                    logger.error("Failed to set main display to \(id): \(error.localizedDescription)")
+                }
             },
             onRefresh: { [weak self] in
                 _ = self?.displayManager.refreshDisplays()
@@ -72,7 +77,7 @@ final class StatusBarController: NSObject {
         )
 
         if let button = statusItem.button {
-            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 5), in: button)
+            menu.popUp(positioning: nil as NSMenuItem?, at: NSPoint(x: 0, y: button.bounds.height + 5), in: button)
         }
     }
 

@@ -25,4 +25,16 @@ public struct LayoutCalculator: Sendable {
 
         return newOrigins
     }
+
+    /// Determines the target display to switch to when toggling between two displays.
+    /// Throws `DisplayError.insufficientDisplays` if display count is not exactly 2.
+    public static func nextToggleTarget(displays: [DisplayInfo]) throws -> CGDirectDisplayID {
+        guard displays.count == 2 else {
+            throw DisplayError.insufficientDisplays
+        }
+        guard let nonMain = displays.first(where: { !$0.isMain }) else {
+            throw DisplayError.insufficientDisplays
+        }
+        return nonMain.id
+    }
 }

@@ -19,7 +19,7 @@ Built with **Swift 6** and **CoreGraphics** for macOS 15 (Sequoia)+.
   - Dynamic tooltips display the active main display and target toggle monitor.
 - **Rigorous Spatial Preservation**: Mathematically preserves the exact relative spatial arrangement of all monitors (horizontal, vertical, or grid matrices) by translating the entire coordinate plane by $(\Delta x, \Delta y)$ to land the target monitor at $(0, 0)$.
 - **Dynamic Hardware Reconfiguration**: Automatically detects displays being plugged in, unplugged, or moved via `CGDisplayRegisterReconfigurationCallback` and updates the menu bar interface.
-- **Lightweight Accessory Agent**: Configured with `.accessory` activation policy (`LSUIElement`), operating silently in the menu bar without cluttering the Dock or Cmd-Tab switcher.
+- **Lightweight Accessory Agent**: Configured with `.accessory` activation policy via `NSApp.setActivationPolicy(.accessory)`, operating silently in the menu bar without cluttering the Dock or Cmd-Tab switcher.
 
 ---
 
@@ -38,7 +38,7 @@ displaytoggle/
 ├── .gitignore                  # Git ignore rules for SPM, worktrees, and VS Code
 ├── Package.swift               # SPM manifest targeting macOS 15
 ├── Sources/
-│   ├── DisplayToggleCore/      # Business logic target (pure Swift + CoreGraphics)
+│   ├── DisplayToggleCore/      # Business logic target (CoreGraphics + AppKit screen naming)
 │   │   ├── Models/
 │   │   │   ├── DisplayError.swift
 │   │   │   └── DisplayInfo.swift
@@ -60,16 +60,17 @@ displaytoggle/
 ### Targets
 
 1. **`DisplayToggleCore` (Library)**:
-   - Pure Swift library with zero AppKit/UI dependencies.
-   - Interfaces directly with macOS `CoreGraphics` APIs (`CGGetActiveDisplayList`, `CGMainDisplayID`, `CGBeginDisplayConfiguration`, `CGConfigureDisplayOrigin`, `CGCompleteDisplayConfiguration`).
-   - Implements `LayoutCalculator` for computing translation vectors $(\Delta x, \Delta y)$.
+   - Core library managing display discovery, geometry translation, and reconfiguration.
+   - Interfaces directly with macOS `CoreGraphics` APIs (`CGGetActiveDisplayList`, `CGMainDisplayID`, `CGBeginDisplayConfiguration`, `CGConfigureDisplayOrigin`, `CGCompleteDisplayConfiguration`) and AppKit `NSScreen` (for localized display names).
+   - Supports dependency injection (`displayProvider`, `displayReconfigurer`) for deterministic, headless-safe unit testing without requiring physical displays.
+   - Implements `LayoutCalculator` for computing translation vectors $(\Delta x, \Delta y)$ and next toggle targets.
    - Manages display notifications via `CGDisplayRegisterReconfigurationCallback`.
 
 2. **`DisplayToggleApp` (Executable)**:
-   - Standalone menu bar application running as an accessory agent.
+   - Standalone menu bar application running as an accessory agent (`NSApp.setActivationPolicy(.accessory)`).
    - Manages the `NSStatusItem` in the system menu bar.
    - Routes mouse clicks (`.leftMouseUp`, `.rightMouseUp`, Option-clicks).
-   - Generates menus dynamically via `MenuBuilder` and handles lifecycle via `NSMenuDelegate`.
+   - Generates menus dynamically via `MenuBuilder` and presents dropdowns via native AppKit menu presentation.
 
 3. **`DisplayToggleCoreTests` (Test Suite)**:
    - Automated unit tests built with Apple's `Testing` framework (`import Testing`).

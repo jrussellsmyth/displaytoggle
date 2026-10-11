@@ -6,6 +6,9 @@ import Foundation
 public final class DisplayManager: DisplayManaging {
     public static let shared = DisplayManager()
 
+    public typealias DisplayProvider = @MainActor () -> [DisplayInfo]
+    public typealias DisplayReconfigurer = @MainActor ([CGDirectDisplayID: CGPoint]) throws -> Void
+
     public private(set) var displays: [DisplayInfo] = []
 
     public var mainDisplay: DisplayInfo? {
@@ -14,11 +17,20 @@ public final class DisplayManager: DisplayManaging {
 
     public var onDisplaysChanged: (@MainActor () -> Void)?
 
+    private let customProvider: DisplayProvider?
+    private let customReconfigurer: DisplayReconfigurer?
     private var reconfigurationCallbackAdded = false
 
-    public init() {
+    public init(
+        displayProvider: DisplayProvider? = nil,
+        displayReconfigurer: DisplayReconfigurer? = nil
+    ) {
+        self.customProvider = displayProvider
+        self.customReconfigurer = displayReconfigurer
         _ = refreshDisplays()
-        setupReconfigurationCallback()
+        if displayProvider == nil && displayReconfigurer == nil {
+            setupReconfigurationCallback()
+        }
     }
 
     deinit {
@@ -29,11 +41,18 @@ public final class DisplayManager: DisplayManaging {
 
     @discardableResult
     public func refreshDisplays() -> [DisplayInfo] {
+        if let customProvider = customProvider {
+            let fetched = customProvider()
+            self.displays = fetched
+            return fetched
+        }
+
         var displayCount: UInt32 = 0
         var activeDisplays = [CGDirectDisplayID](repeating: 0, count: 16)
         let result = CGGetActiveDisplayList(16, &activeDisplays, &displayCount)
 
         guard result == .success else {
+            self.displays = []
             return []
         }
 
@@ -73,13 +92,22 @@ public final class DisplayManager: DisplayManaging {
     }
 
     public func setMainDisplay(id: CGDirectDisplayID) throws {
-        _ = refreshDisplays()
+        let refreshed = refreshDisplays()
+        guard !refreshed.isEmpty else {
+            throw DisplayError.insufficientDisplays
+        }
         guard let target = displays.first(where: { $0.id == id }) else {
             throw DisplayError.displayNotFound(id)
         }
         if target.isMain { return }
 
         let newOrigins = try LayoutCalculator.calculateNewOrigins(displays: displays, targetMainID: id)
+
+        if let customReconfigurer = customReconfigurer {
+            try customReconfigurer(newOrigins)
+            _ = refreshDisplays()
+            return
+        }
 
         var configRef: CGDisplayConfigRef?
         let beginResult = CGBeginDisplayConfiguration(&configRef)
@@ -109,23 +137,18 @@ public final class DisplayManager: DisplayManaging {
     }
 
     public func toggleMainDisplay() throws {
-        _ = refreshDisplays()
-        guard displays.count == 2 else {
-            throw DisplayError.insufficientDisplays
-        }
-        guard let nonMain = displays.first(where: { !$0.isMain }) else { return }
-        try setMainDisplay(id: nonMain.id)
+        let refreshed = refreshDisplays()
+        let nextTargetID = try LayoutCalculator.nextToggleTarget(displays: refreshed)
+        try setMainDisplay(id: nextTargetID)
     }
 
     private nonisolated static let displayReconfigurationCallback: CGDisplayReconfigurationCallBack = { _, flags, userInfo in
         guard let userInfo = userInfo else { return }
         guard !flags.contains(.beginConfigurationFlag) else { return }
         let manager = Unmanaged<DisplayManager>.fromOpaque(userInfo).takeUnretainedValue()
-        if flags.contains(.addFlag) || flags.contains(.removeFlag) || flags.contains(.movedFlag) {
-            Task { @MainActor in
-                manager.refreshDisplays()
-                manager.onDisplaysChanged?()
-            }
+        Task { @MainActor in
+            manager.refreshDisplays()
+            manager.onDisplaysChanged?()
         }
     }
 
