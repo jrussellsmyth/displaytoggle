@@ -3,6 +3,6 @@
 .DS_Store
 *.xcodeproj/
 *.xcworkspace/
-.worktrees
 .worktrees/
+.superpowers/
 DerivedData/

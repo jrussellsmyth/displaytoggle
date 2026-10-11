@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "swift: Build Debug",
+      "type": "shell",
+      "command": "swift build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$swift-compile"
+    },
+    {
+      "label": "swift: Run Tests",
+      "type": "shell",
+      "command": "if [ -d /Library/Developer/CommandLineTools/Library/Developer/Frameworks/Testing.framework ] && [ ! -d /Applications/Xcode.app ]; then swift test -Xswiftc -F/Library/Developer/CommandLineTools/Library/Developer/Frameworks -Xlinker -F/Library/Developer/CommandLineTools/Library/Developer/Frameworks -Xlinker -framework -Xlinker Testing -Xlinker -rpath -Xlinker /Library/Developer/CommandLineTools/Library/Developer/Frameworks; else swift test; fi",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": "$swift-compile"
+    }
+  ]
+}
