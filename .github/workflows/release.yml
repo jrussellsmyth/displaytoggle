@@ -134,3 +134,55 @@ jobs:
             dist/DisplayToggle.zip
             dist/DisplayToggle.zip.sha256
           generate_release_notes: true
+
+      - name: Publish Cask to Homebrew Tap (Optional)
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+        run: |
+          if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
+            echo "HOMEBREW_TAP_TOKEN secret not configured. Skipping automated Homebrew Tap update."
+            exit 0
+          fi
+
+          echo "==> Updating Homebrew Tap repository..."
+          DMG_SHA256=$(awk '{print $1}' dist/DisplayToggle.dmg.sha256)
+          TAP_REPO_URL="https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/jrussellsmyth/homebrew-tap.git"
+
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          TAP_DIR="$RUNNER_TEMP/homebrew-tap"
+          rm -rf "$TAP_DIR"
+          git clone "$TAP_REPO_URL" "$TAP_DIR"
+
+          mkdir -p "$TAP_DIR/Casks"
+          sed "s/^          //" <<EOF > "$TAP_DIR/Casks/displaytoggle.rb"
+          cask "displaytoggle" do
+            version "${VERSION}"
+            sha256 "${DMG_SHA256}"
+
+            url "https://github.com/jrussellsmyth/displaytoggle/releases/download/v#{version}/DisplayToggle.dmg"
+            name "DisplayToggle"
+            desc "Lightweight macOS menu bar tool to quickly toggle the primary display"
+            homepage "https://github.com/jrussellsmyth/displaytoggle"
+
+            depends_on macos: ">= :sequoia"
+
+            app "DisplayToggle.app"
+
+            zap trash: [
+              "~/Library/Preferences/com.displaytoggle.DisplayToggleApp.plist",
+            ]
+          end
+          EOF
+
+          cd "$TAP_DIR"
+          git add Casks/displaytoggle.rb
+          if git diff --staged --quiet; then
+            echo "Cask in tap is already up to date. No commit needed."
+          else
+            git commit -m "bump(cask): update displaytoggle to v${VERSION}"
+            git push origin HEAD
+            echo "Successfully updated displaytoggle cask in jrussellsmyth/homebrew-tap!"
+          fi

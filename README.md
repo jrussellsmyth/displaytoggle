@@ -111,10 +111,23 @@ You can run it directly:
 
 ---
 
-## Packaging & Distribution
+## Installation
 
-### Building the `.app` Bundle, DMG & ZIP
-To assemble a standalone macOS application bundle (`DisplayToggle.app`) along with drag-and-drop `.dmg` and `.zip` distribution packages:
+### Via Homebrew Cask
+DisplayToggle is available via Homebrew:
+```bash
+brew tap jrussellsmyth/tap
+brew install --cask displaytoggle
+```
+
+### Direct Download
+Download `DisplayToggle.dmg` from the latest [GitHub Release](https://github.com/jrussellsmyth/displaytoggle/releases/latest), open it, and drag `DisplayToggle.app` to your `/Applications` folder.
+
+---
+
+## Packaging
+
+To assemble the standalone macOS application bundle (`DisplayToggle.app`) along with drag-and-drop `.dmg` and `.zip` distribution packages locally:
 
 ```bash
 ./scripts/package-app.sh 1.0.0
@@ -124,32 +137,6 @@ The output artifacts are generated in `dist/`:
 - `dist/DisplayToggle.app`: Native macOS application bundle.
 - `dist/DisplayToggle.dmg`: Drag-and-drop installer image.
 - `dist/DisplayToggle.zip`: Compressed application archive.
-
-### GitHub Actions Automated Releases
-A GitHub Actions workflow (`.github/workflows/release.yml`) is included. When a Git version tag is pushed (e.g. `git tag v1.0.0 && git push origin v1.0.0`), the CI pipeline automatically:
-1. Runs the test suite on `macos-15`.
-2. Packages `DisplayToggle.app`, `DisplayToggle.dmg`, and `DisplayToggle.zip`.
-3. Signs and notarizes the artifacts (if Apple Developer credentials are provided in GitHub Secrets).
-4. Publishes a GitHub Release with the installer assets attached.
-
-### Homebrew Cask Distribution
-A Homebrew Cask formula template is provided at `packaging/homebrew/displaytoggle.rb`.
-
-#### 1. Publishing to a Custom Tap
-1. Create a GitHub repository named `homebrew-tap` (or similar) under your GitHub account.
-2. Copy `packaging/homebrew/displaytoggle.rb` to `Casks/displaytoggle.rb` in that repository.
-3. Update `version` and replace `sha256` with the checksum from the release asset (`DisplayToggle.dmg.sha256`).
-4. Users can then install and update with:
-   ```bash
-   brew tap jrussellsmyth/tap
-   brew install --cask displaytoggle
-   ```
-
-#### 2. Local Installation (from Source)
-To install locally using the included cask formula without setting up a remote tap:
-```bash
-brew install --cask packaging/homebrew/displaytoggle.rb
-```
 
 ---
 
