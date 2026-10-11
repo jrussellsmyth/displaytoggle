@@ -119,9 +119,18 @@ DisplayToggle is available via Homebrew:
 brew tap jrussellsmyth/tap
 brew install --cask displaytoggle
 ```
+> [!NOTE]
+> The cask automatically clears the macOS quarantine attribute upon installation so the app can launch without Gatekeeper warnings.
 
-### Direct Download
-Download `DisplayToggle.dmg` from the latest [GitHub Release](https://github.com/jrussellsmyth/displaytoggle/releases/latest), open it, and drag `DisplayToggle.app` to your `/Applications` folder.
+### Direct Download (.dmg)
+1. Download `DisplayToggle.dmg` from the latest [GitHub Release](https://github.com/jrussellsmyth/displaytoggle/releases/latest).
+2. Open the disk image and drag `DisplayToggle.app` to your `/Applications` folder.
+3. Because DisplayToggle uses ad-hoc signing rather than a paid Apple Developer certificate, macOS Gatekeeper may show a warning on first launch (*"Apple could not verify..."*). You can bypass this using either method:
+   - **Terminal (Instant)**: Run the following command once to clear the quarantine flag:
+     ```bash
+     xattr -cr /Applications/DisplayToggle.app
+     ```
+   - **System Settings**: Go to **System Settings > Privacy & Security**, scroll down to the Security section where DisplayToggle is listed, and click **Open Anyway**.
 
 ---
 
