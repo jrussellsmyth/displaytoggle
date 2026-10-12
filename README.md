@@ -128,9 +128,9 @@ brew install --cask displaytoggle
 3. Because DisplayToggle uses ad-hoc signing rather than a paid Apple Developer certificate, macOS Gatekeeper may show a warning on first launch (*"Apple could not verify..."*). You can bypass this using either method:
    - **Terminal (Instant)**: Run the following command once to clear the quarantine flag:
      ```bash
-     xattr -cr /Applications/DisplayToggle.app
+     xattr -dr com.apple.quarantine /Applications/DisplayToggle.app
      ```
-   - **System Settings**: Go to **System Settings > Privacy & Security**, scroll down to the Security section where DisplayToggle is listed, and click **Open Anyway**.
+   - **System Settings**: First try opening `DisplayToggle.app` and dismiss the Gatekeeper warning. Then go to **System Settings > Privacy & Security**, scroll down to the Security section where DisplayToggle is listed, and click **Open Anyway**.
 
 ---
 
